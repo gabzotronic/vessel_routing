@@ -5,6 +5,26 @@ from solver import build_scenario, build_graph, build_model, solve
 st.set_page_config(page_title="Electric Vessel Routing Demo", layout="wide")
 st.title("⚓ Electric Vessel Routing Demo")
 
+# ── Custom styling for Run button ────────────────────────────────────────────
+st.markdown("""
+<style>
+div[data-testid="stSidebar"] button {
+    background-color: #00AA00 !important;
+    color: white !important;
+    border: none !important;
+    font-weight: bold !important;
+    font-size: 16px !important;
+}
+div[data-testid="stSidebar"] button:hover {
+    background-color: #00CC00 !important;
+}
+div[data-testid="stSidebar"] button:disabled {
+    background-color: #666666 !important;
+    opacity: 0.6 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ── Sidebar parameters ──────────────────────────────────────────────────────
 with st.sidebar:
 
