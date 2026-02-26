@@ -10,11 +10,11 @@ SIM_PERIOD = 300 # time units
 RATE_DISCHARGE = 2 # charge/distance
 N_VESSELS = 2
 N_DUPLICATE_CHARGE_NODES = 3
-AREA_LEN = 20
+AREA_LEN = 15
 N_CUSTOMERS = 5
 MAX_DEMAND_PER_CUSTOMER = 5
 
-rng = np.random.default_rng(seed=43)
+rng = np.random.default_rng(seed=42)
 customers = []
 for c in range(N_CUSTOMERS):
     start_time = rng.integers(0, SIM_PERIOD - 10)
