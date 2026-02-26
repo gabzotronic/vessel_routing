@@ -6,7 +6,7 @@ plt.close('all')
 
 #__________ SETUP __________#
 VESSEL_SPEED = 1 # distance/time
-SIM_PERIOD = 500 # time units
+SIM_PERIOD = 300 # time units
 RATE_DISCHARGE = 2 # charge/distance
 N_VESSELS = 2
 N_DUPLICATE_CHARGE_NODES = 3
@@ -14,7 +14,7 @@ AREA_LEN = 20
 N_CUSTOMERS = 5
 MAX_DEMAND_PER_CUSTOMER = 5
 
-rng = np.random.default_rng(seed=42)
+rng = np.random.default_rng(seed=43)
 customers = []
 for c in range(N_CUSTOMERS):
     start_time = rng.integers(0, SIM_PERIOD - 10)
@@ -247,6 +247,11 @@ for c in range(n_customers):
         # pickup must happen before delivery
         model.Add(time_var[pickup][k] <= time_var[delivery][k]).OnlyEnforceIf(visits[pickup][k])
 
+# vessels can only enter a charger node if cargo is 0
+for k in range(N_VESSELS):
+    for i in charge_node_index:
+        model.Add(cargo_var[i][k] == 0).OnlyEnforceIf(visits[i][k])
+
 # cargo constraint: if vessel k travels arc i->j, cargo[j][k] = cargo[i][k] + demand[j]
 for k in range(N_VESSELS):
     # start at depot with 0 cargo
@@ -343,8 +348,8 @@ if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
 
     # customer service times
     print(f'\nCustomer Service Times:')
-    print(f'  {"Customer":<10} {"Vessel":<10} {"T_pickup":>10} {"T_delivery":>10} {"T_service":>10}')
-    print('  ' + '-' * 52)
+    print(f'  {"Customer":<10} {"Vessel":<10} {"T_pickup":>10} {"T_delivery":>10} {"T_service":>10} {"T_wait":>10}')
+    print('  ' + '-' * 62)
     for c in range(n_customers):
         pickup = 1 + 2 * c
         delivery = 2 + 2 * c
@@ -352,7 +357,8 @@ if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             if solver.Value(visits[pickup][k]) == 1:
                 t_pickup = solver.Value(time_var[pickup][k]) / SCALE
                 t_delivery = solver.Value(time_var[delivery][k]) / SCALE
-                print(f'  {"cust" + str(c):<10} {vessels[k]["name"]:<10} {t_pickup:>10.2f} {t_delivery:>10.2f} {t_delivery - t_pickup:>10.2f}')
+                t_wait = t_pickup - nodes[pickup]['start_window'][0]
+                print(f'  {"cust" + str(c):<10} {vessels[k]["name"]:<10} {t_pickup:>10.2f} {t_delivery:>10.2f} {t_delivery - t_pickup:>10.2f} {t_wait:>10.2f}')
                 break
 
     #__________ PLOT ROUTES __________#
