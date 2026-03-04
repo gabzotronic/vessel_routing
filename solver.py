@@ -378,12 +378,22 @@ def solve(model, variables, nodes, customers, vessels, params):
                 })
                 break
 
-    # Route plot with plotly (interactive)
+    # Route plot with plotly mapbox (interactive map background)
+    AREA_LEN = params['AREA_LEN']
+    LAT_MIN, LAT_MAX = 1.22, 1.27
+    LON_MIN, LON_MAX = 103.88, 103.94
+
+    def to_lat(y):
+        return LAT_MIN + (y / AREA_LEN) * (LAT_MAX - LAT_MIN)
+
+    def to_lon(x):
+        return LON_MIN + (x / AREA_LEN) * (LON_MAX - LON_MIN)
+
     vessel_colors = ['#0099FF', '#FF7700', '#00AA00', '#FF0000', '#9933FF', '#00CCFF']
 
     fig = go.Figure()
 
-    # Add vessel routes as arrows
+    # Add vessel routes as lines
     for k in range(N_VESSELS):
         color   = vessel_colors[k % len(vessel_colors)]
         current = source
@@ -396,10 +406,10 @@ def solve(model, variables, nodes, customers, vessels, params):
             loc_i = nodes[current]['location']
             loc_j = nodes[next_node]['location']
 
-            # Arrow line
-            fig.add_trace(go.Scatter(
-                x=[loc_i[0], loc_j[0]],
-                y=[loc_i[1], loc_j[1]],
+            # Route line segment
+            fig.add_trace(go.Scattermapbox(
+                lat=[to_lat(loc_i[1]), to_lat(loc_j[1])],
+                lon=[to_lon(loc_i[0]), to_lon(loc_j[0])],
                 mode='lines',
                 line=dict(color=color, width=2),
                 showlegend=False,
@@ -408,17 +418,16 @@ def solve(model, variables, nodes, customers, vessels, params):
             ))
 
             # Step number at midpoint
-            mid_x = (loc_i[0] + loc_j[0]) / 2
-            mid_y = (loc_i[1] + loc_j[1]) / 2
-            fig.add_annotation(
-                x=mid_x, y=mid_y,
-                text=str(step),
-                showarrow=False,
-                font=dict(size=10, color=color),
-                bgcolor='rgba(0,0,0,0.5)',
-                bordercolor=color,
-                borderwidth=1
-            )
+            mid_lat = (to_lat(loc_i[1]) + to_lat(loc_j[1])) / 2
+            mid_lon = (to_lon(loc_i[0]) + to_lon(loc_j[0])) / 2
+            fig.add_trace(go.Scattermapbox(
+                lat=[mid_lat], lon=[mid_lon],
+                mode='text',
+                text=[str(step)],
+                textfont=dict(size=10, color=color),
+                showlegend=False,
+                hoverinfo='skip',
+            ))
 
             current = next_node
             step   += 1
@@ -426,72 +435,72 @@ def solve(model, variables, nodes, customers, vessels, params):
     # Add depot nodes
     depot_nodes = [n for n in nodes if n['location_type'] == 'depot']
     if depot_nodes:
-        depot_x = [n['location'][0] for n in depot_nodes]
-        depot_y = [n['location'][1] for n in depot_nodes]
-        fig.add_trace(go.Scatter(
-            x=depot_x, y=depot_y,
-            mode='markers',
-            marker=dict(symbol='square', size=12, color='gray'),
+        fig.add_trace(go.Scattermapbox(
+            lat=[to_lat(n['location'][1]) for n in depot_nodes],
+            lon=[to_lon(n['location'][0]) for n in depot_nodes],
+            mode='markers+text',
+            marker=dict(size=14, color='gray'),
+            text=['Depot'] * len(depot_nodes),
+            textposition='top center',
+            textfont=dict(size=9, color='gray'),
             name='Depot',
-            text=['Depot (start/end)'] * len(depot_x),
-            hovertemplate='<b>Depot</b><br>Location: (%{x:.1f}, %{y:.1f})<extra></extra>'
+            hovertemplate='<b>Depot</b><br>(%{lat:.4f}, %{lon:.4f})<extra></extra>'
         ))
 
     # Add pickup nodes
     pickup_nodes = [n for n in nodes if n['location_type'] == 'start']
     if pickup_nodes:
-        pickup_x = [n['location'][0] for n in pickup_nodes]
-        pickup_y = [n['location'][1] for n in pickup_nodes]
         cust_ids = [(n['node_id'] - 1) // 2 for n in pickup_nodes]
-        fig.add_trace(go.Scatter(
-            x=pickup_x, y=pickup_y,
+        fig.add_trace(go.Scattermapbox(
+            lat=[to_lat(n['location'][1]) for n in pickup_nodes],
+            lon=[to_lon(n['location'][0]) for n in pickup_nodes],
             mode='markers+text',
-            marker=dict(symbol='circle', size=10, color='green'),
+            marker=dict(size=12, color='green', symbol='circle'),
             text=[f'P{c}' for c in cust_ids],
             textposition='top center',
+            textfont=dict(size=9, color='green'),
             customdata=[c for c in cust_ids],
             name='Pickup (P)',
-            hovertemplate='<b>Pickup</b><br>Customer: cust%{customdata}<br>Location: (%{x:.1f}, %{y:.1f})<extra></extra>',
-            textfont=dict(size=9)
+            hovertemplate='<b>Pickup</b><br>Customer: cust%{customdata}<br>(%{lat:.4f}, %{lon:.4f})<extra></extra>',
         ))
 
     # Add delivery nodes
     delivery_nodes = [n for n in nodes if n['location_type'] == 'end']
     if delivery_nodes:
-        delivery_x = [n['location'][0] for n in delivery_nodes]
-        delivery_y = [n['location'][1] for n in delivery_nodes]
         cust_ids = [(n['node_id'] - 1) // 2 for n in delivery_nodes]
-        fig.add_trace(go.Scatter(
-            x=delivery_x, y=delivery_y,
+        fig.add_trace(go.Scattermapbox(
+            lat=[to_lat(n['location'][1]) for n in delivery_nodes],
+            lon=[to_lon(n['location'][0]) for n in delivery_nodes],
             mode='markers+text',
-            marker=dict(symbol='x', size=12, color='red'),
+            marker=dict(size=12, color='red'),
             text=[f'D{c}' for c in cust_ids],
             textposition='top center',
+            textfont=dict(size=9, color='red'),
             customdata=[c for c in cust_ids],
             name='Delivery (D)',
-            hovertemplate='<b>Delivery</b><br>Customer: cust%{customdata}<br>Location: (%{x:.1f}, %{y:.1f})<extra></extra>',
-            textfont=dict(size=9)
+            hovertemplate='<b>Delivery</b><br>Customer: cust%{customdata}<br>(%{lat:.4f}, %{lon:.4f})<extra></extra>',
         ))
 
     # Add charger nodes
     charger_nodes = [n for n in nodes if n['location_type'] == 'charger']
     if charger_nodes:
-        charger_x = [n['location'][0] for n in charger_nodes]
-        charger_y = [n['location'][1] for n in charger_nodes]
-        fig.add_trace(go.Scatter(
-            x=charger_x, y=charger_y,
-            mode='markers',
-            marker=dict(symbol='triangle-up', size=11, color='magenta'),
+        fig.add_trace(go.Scattermapbox(
+            lat=[to_lat(n['location'][1]) for n in charger_nodes],
+            lon=[to_lon(n['location'][0]) for n in charger_nodes],
+            mode='markers+text',
+            marker=dict(size=13, color='magenta'),
+            text=['⚡'] * len(charger_nodes),
+            textposition='top center',
+            textfont=dict(size=14),
             name='Charger',
-            text=['Charger node'] * len(charger_x),
-            hovertemplate='<b>Charger</b><br>Location: (%{x:.1f}, %{y:.1f})<extra></extra>'
+            hovertemplate='<b>Charger</b><br>(%{lat:.4f}, %{lon:.4f})<extra></extra>'
         ))
 
-    # Add vessel route legend
+    # Add vessel route legend entries
     for k in range(N_VESSELS):
         color = vessel_colors[k % len(vessel_colors)]
-        fig.add_trace(go.Scatter(
-            x=[None], y=[None],
+        fig.add_trace(go.Scattermapbox(
+            lat=[None], lon=[None],
             mode='lines',
             line=dict(color=color, width=3),
             name=f'{vessels[k]["name"]} route',
@@ -499,19 +508,28 @@ def solve(model, variables, nodes, customers, vessels, params):
         ))
 
     fig.update_layout(
-        title='Vehicle Routes (Interactive)',
-        xaxis=dict(title='X coordinate', showgrid=True),
-        yaxis=dict(title='Y coordinate', showgrid=True),
+        title='Vehicle Routes',
+        mapbox=dict(
+            style='open-street-map',
+            center=dict(
+                lat=(LAT_MIN + LAT_MAX) / 2,
+                lon=(LON_MIN + LON_MAX) / 2,
+            ),
+            zoom=12.5,
+        ),
         hovermode='closest',
         height=1000,
         width=800,
         legend=dict(
-            title='<b>Legend</b><br><sub>■ Depot (start/end)<br>● Pickup (P)<br>✕ Delivery (D)<br>▲ Charger<br>―→ Vessel routes</sub>',
+            title='<b>Legend</b>',
             yanchor='top',
             y=0.99,
             xanchor='left',
-            x=0.01
-        )
+            x=0.01,
+            bgcolor='rgba(0,0,0,0.7)',
+            font=dict(color='white'),
+        ),
+        margin=dict(l=0, r=0, t=40, b=0),
     )
 
     return SolverResult(
