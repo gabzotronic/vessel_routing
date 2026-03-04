@@ -422,8 +422,10 @@ def solve(model, variables, nodes, customers, vessels, params):
             mid_lon = (to_lon(loc_i[0]) + to_lon(loc_j[0])) / 2
             fig.add_trace(go.Scattermapbox(
                 lat=[mid_lat], lon=[mid_lon],
-                mode='text',
+                mode='markers+text',
+                marker=dict(size=1, color='rgba(0,0,0,0)'),
                 text=[str(step)],
+                textposition='top center',
                 textfont=dict(size=10, color=color),
                 showlegend=False,
                 hoverinfo='skip',
